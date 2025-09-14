@@ -11,6 +11,13 @@ import openai
 import os
 
 app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # OpenAI-Key aus Environment-Variable laden
 openai.api_key = os.getenv("OPENAI_API_KEY")
