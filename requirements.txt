@@ -4,3 +4,4 @@ pdfminer.six
 pymupdf
 pillow
 pytesseract
+openai
