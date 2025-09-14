@@ -1,18 +1,8 @@
-# Webserver
 fastapi
 uvicorn[standard]
-
-# PDF Verarbeitung
 pdfminer.six
-PyPDF2
-
-# Bilder / OCR
+pymupdf
 pillow
 pytesseract
-
-# KI / OpenAI
-openai
-
-# Hilfsbibliotheken
 python-multipart
 requests
