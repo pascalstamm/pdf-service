@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dokument hochladen</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 12px; }
+    label { display:block; margin:12px 0 6px; font-weight:600; }
+    input, select, button { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; }
+    button { cursor:pointer; margin-top:16px; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .hint { color:#666; font-size: 0.9rem; }
+    .ok { color:#0a8; }
+    .err { color:#c00; }
+  </style>
+</head>
+<body>
+  <h1>Dokument hochladen</h1>
+
+  <form id="analyzeForm">
+    <label for="file">PDF auswählen</label>
+    <input type="file" id="file" accept="application/pdf" required />
+
+    <div class="row">
+      <div>
+        <label for="folder">Zielordner (pCloud)</label>
+        <input type="text" id="folder" placeholder="/Unterlagen" value="/Unterlagen" />
+      </div>
+      <div>
+        <label for="email">E-Mail (optional)</label>
+        <input type="email" id="email" placeholder="z.B. name@email.de" />
+      </div>
+    </div>
+
+    <label for="filename">Dateiname (vorgeschlagen – kannst du ändern)</label>
+    <input type="text" id="filename" placeholder="Wird nach Analyse vorgeschlagen …" />
+
+    <button type="submit">1) Analysieren & Vorschlag holen</button>
+    <p id="status" class="hint"></p>
+  </form>
+
+  <form id="uploadForm" style="display:none;">
+    <button type="submit">2) Hochladen nach pCloud</button>
+    <p class="hint">Es wird der oben eingetragene Dateiname verwendet.</p>
+    <p id="uploadStatus" class="hint"></p>
+  </form>
+
+<script>
+const ANALYZE_URL = "https://pdf-service-1.onrender.com/analyze"; // dein Render-Service
+const MAKE_WEBHOOK_URL = "PASTE_YOUR_MAKE_WEBHOOK_URL_HERE";      // gleich ersetzen!
+
+function safeName(s) {
+  if (!s) return "Dokument.pdf";
+  // ungültige Zeichen entfernen/ersetzen
+  return s.replace(/[\\/*?"<>|]/g, "").replace(/[:]/g,"-").replace(/\s+/g," ").trim();
+}
+
+document.getElementById("analyzeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("status");
+  status.textContent = "Analysiere …";
+
+  const file = document.getElementById("file").files[0];
+  if (!file) { status.textContent = "Bitte zuerst eine PDF auswählen."; return; }
+
+  const fd = new FormData();
+  fd.append("file", file, file.name);
+
+  try {
+    const r = await fetch(ANALYZE_URL, { method: "POST", body: fd });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+
+    // Vorschlag zusammensetzen, falls Backend keinen liefert
+    const datum = data.datum || new Date().toISOString().slice(0,10);
+    const typ = (data.typ || "Dokument").replace(/\s+/g,"_");
+    const abs = (data.absender || "Unbekannt").replace(/[\\/*?"<>|]/g,"").replace(/\s+/g,"_");
+    const suggestion = safeName(`${datum}_${typ}_${abs}.pdf`);
+
+    const input = document.getElementById("filename");
+    if (!input.value) input.value = suggestion;
+
+    status.textContent = "Vorschlag eingetragen. Du kannst den Namen noch ändern.";
+    status.className = "hint ok";
+
+    // Upload-Form sichtbar machen
+    document.getElementById("uploadForm").style.display = "block";
+  } catch(err) {
+    status.textContent = "Analyse fehlgeschlagen: " + err.message;
+    status.className = "hint err";
+  }
+});
+
+document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const upStatus = document.getElementById("uploadStatus");
+  upStatus.textContent = "Lade hoch …";
+
+  const file = document.getElementById("file").files[0];
+  if (!file) { upStatus.textContent = "Keine Datei gewählt."; return; }
+
+  const filename = safeName(document.getElementById("filename").value) || "Dokument.pdf";
+  const folder = document.getElementById("folder").value || "/Unterlagen";
+  const email = document.getElementById("email").value || "";
+
+  const fd2 = new FormData();
+  fd2.append("file", file, file.name);
+  fd2.append("filename", filename);
+  fd2.append("folder", folder);
+  if (email) fd2.append("email", email);
+
+  try {
+    const r = await fetch(MAKE_WEBHOOK_URL, { method: "POST", body: fd2 });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    upStatus.textContent = "Upload an Make/pCloud ausgelöst. ✔";
+    upStatus.className = "hint ok";
+  } catch(err) {
+    upStatus.textContent = "Upload fehlgeschlagen: " + err.message;
+    upStatus.className = "hint err";
+  }
+});
+</script>
+</body>
+</html>
