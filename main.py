@@ -1,49 +1,40 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
-import fitz  # PyMuPDF
-import pytesseract
-from PIL import Image
-import io
 
-app = FastAPI(title="PDF Text Extractor", version="1.0.0")
+app = FastAPI()
 
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
-@app.post("/extract_text")
-async def extract_text_from_pdf(file: UploadFile = File(...)):
+@app.post("/analyze")
+async def analyze(file: UploadFile = File(...)):
+    """
+    Nimmt eine PDF entgegen und gibt IMMER ein JSON mit den Schlüsseln
+    typ, absender, datum, betrag, kurzfassung zurück.
+    Aktuell Dummy-Werte, später können wir OCR + OpenAI einbauen.
+    """
     try:
-        # PDF einlesen
-        pdf_bytes = await file.read()
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        # Datei einlesen (noch ungenutzt, Platzhalter für spätere Analyse)
+        content = await file.read()
 
-        full_text = []
+        # Hier könnte deine OCR/AI-Analyse stattfinden
+        # analysis = do_analysis(content)
+        # result.update(analysis)
 
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-
-            # 1. Text direkt aus der PDF extrahieren
-            text = page.get_text("text")
-            if text.strip():
-                full_text.append(text)
-                continue  # OCR nur, wenn kein Text gefunden
-
-            # 2. OCR als Fallback (Bildseite)
-            pix = page.get_pixmap()
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            ocr_text = pytesseract.image_to_string(img, lang="deu+eng")
-            full_text.append(ocr_text)
-
-        return JSONResponse(content={
-            "status": "ok",
-            "text": "\n".join(full_text)
-        })
+        # Testwerte zurückgeben (Dummy)
+        result = {
+            "typ": "Rechnung",
+            "absender": "Muster GmbH",
+            "datum": "2025-09-14",
+            "betrag": "123.45",
+            "kurzfassung": "Beispiel: Webhosting Rechnung"
+        }
 
     except Exception as e:
-        return JSONResponse(content={
-            "status": "error",
-            "message": str(e)
-        }, status_code=500)
+        # Falls etwas schiefgeht → Dummy mit Fehler
+        result = {
+            "typ": "Unbekannt",
+            "absender": "Fehler",
+            "datum": "1970-01-01",
+            "betrag": "0.00",
+            "kurzfassung": f"Analysefehler: {str(e)}"
+        }
+
+    return JSONResponse(content=result)
