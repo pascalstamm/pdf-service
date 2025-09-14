@@ -2,8 +2,8 @@ name: Keep Render Service Alive
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # alle 10 Minuten
-  workflow_dispatch:         # manuell starten möglich
+    - cron: "*/10 * * * *"   # alle 10 Minuten (UTC)
+  workflow_dispatch:         # optional: manuell starten möglich
 
 jobs:
   ping:
@@ -11,4 +11,4 @@ jobs:
     steps:
       - name: Call Render Health Endpoint
         run: |
-          curl -s https://pdf-service-1.onrender.com/health
+          curl -s https://pdf-service-1.onrender.com/health || true
