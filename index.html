@@ -79,18 +79,22 @@ document.getElementById("analyzeForm").addEventListener("submit", async (e) => {
     const suggestion = safeName(`${datum}_${typ}_${abs}.pdf`);
 
     const input = document.getElementById("filename");
-    if (!input.value) input.value = suggestion;
+// Vorschlag direkt vom Backend übernehmen
+if (!input.value && data.vorschlag) {
+  input.value = data.vorschlag;
+}
 
-    status.textContent = "Vorschlag eingetragen. Du kannst den Namen noch ändern.";
-    status.className = "hint ok";
+status.textContent = "Vorschlag eingetragen. Du kannst den Namen noch ändern.";
+status.className = "hint ok";
 
-    // Upload-Form sichtbar machen
-    document.getElementById("uploadForm").style.display = "block";
-  } catch(err) {
-    status.textContent = "Analyse fehlgeschlagen: " + err.message;
-    status.className = "hint err";
-  }
+// Upload-Form sichtbar machen
+document.getElementById("uploadForm").style.display = "block";
+} catch(err) {
+status.textContent = "Analyse fehlgeschlagen: " + err.message;
+status.className = "hint err";
+}
 });
+
 
 document.getElementById("uploadForm").addEventListener("submit", async (e) => {
   e.preventDefault();
