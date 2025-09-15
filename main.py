@@ -22,45 +22,51 @@ app.add_middleware(
 # OpenAI-Key aus Environment-Variable laden
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def extract_info(text: str):
-    # Datum -> YYYY-MM-DD
-    date_norm = None
-    for pat, fmt in [
-        (r"(\d{4}-\d{2}-\d{2})", "%Y-%m-%d"),
-        (r"(\d{2}\.\d{2}\.\d{4})", "%d.%m.%Y"),
-        (r"(\d{2}/\d{2}/\d{4})", "%d/%m/%Y"),
-    ]:
-        m = re.search(pat, text)
-        if m:
-            raw = m.group(1)
-            try:
-                date_norm = datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
-                break
-            except Exception:
-                pass
-    if not date_norm:
-        date_norm = datetime.utcnow().strftime("%Y-%m-%d")
+def extract_info(text: str) -> dict:
+    # Datum
+    date_norm = choose_document_date(text)
 
     # Betrag (letzte Summe im Dokument)
-    amount_match = re.findall(r"(\d+[.,]\d{2}) ?€", text)
-    betrag = amount_match[-1] if amount_match else ""
+    m = re.findall(r"\b\d{1,3}(?:\.\d{3})*,\d{2}\b", text)
+    betrag = m[-1] if m else None
 
-    # Absender (erste Zeile mit Buchstaben)
+    # Absender (erste nicht-leere Zeile mit Buchstaben)
     absender = ""
     for line in text.splitlines():
         if re.search(r"[A-Za-z]", line) and len(line.strip()) > 3:
             absender = line.strip()
             break
+    if not absender:
+        absender = "Unbekannt"
 
-    # Typ (sehr einfache Regel, wird später erweitert)
-    typ = "Rechnung" if "Rechnung" in text else "Dokument"
+    # Typ (einfache Regeln)
+    low = text.lower()
+    if "rechnung" in low:
+        typ = "Rechnung"
+    elif "bescheid" in low:
+        typ = "Bescheid"
+    elif "vertrag" in low:
+        typ = "Vertrag"
+    else:
+        typ = "Dokument"
+
+    # Kurzfassung (erste 200 Zeichen)
+    kurz = text[:200].replace("\n", " ")
+
+    # Dateiname-Vorschlag bauen
+    safe_typ = typ.replace(" ", "_").replace("/", "-").replace(":", "-")
+    safe_abs = absender.replace(" ", "_").replace("/", "-").replace(":", "-")[:50]
+    vorschlag = f"{date_norm}_{safe_typ}_{safe_abs}.pdf"
 
     return {
         "datum": date_norm,
         "betrag": betrag,
         "absender": absender,
         "typ": typ,
+        "kurzfassung": kurz,
+        "vorschlag": vorschlag
     }
+
 
 def extract_text_with_ocr(file_bytes: bytes) -> str:
     """Versuche zuerst pdfminer, wenn nichts kommt → OCR mit PyMuPDF + Tesseract"""
