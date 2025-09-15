@@ -48,12 +48,14 @@
 
 <script>
 const ANALYZE_URL = "https://pdf-service-1.onrender.com/analyze"; // dein Render-Service
-const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/cndl1hhe80jqm3mngnlce62beysxgjw2";      // gleich ersetzen!
+const MAKE_WEBHOOK_URL = "HIER_DEIN_MAKE_WEBHOOK"; // ersetzen!
 
 function safeName(s) {
   if (!s) return "Dokument.pdf";
-  // ungültige Zeichen entfernen/ersetzen
-  return s.replace(/[\\/*?"<>|]/g, "").replace(/[:]/g,"-").replace(/\s+/g," ").trim();
+  return s.replace(/[\\/*?"<>|]/g, "")
+          .replace(/[:]/g,"-")
+          .replace(/\s+/g,"_")
+          .trim();
 }
 
 document.getElementById("analyzeForm").addEventListener("submit", async (e) => {
@@ -72,29 +74,29 @@ document.getElementById("analyzeForm").addEventListener("submit", async (e) => {
     if (!r.ok) throw new Error("HTTP " + r.status);
     const data = await r.json();
 
-    // Vorschlag zusammensetzen, falls Backend keinen liefert
+    // Fallback-Vorschlag bauen
     const datum = data.datum || new Date().toISOString().slice(0,10);
     const typ = (data.typ || "Dokument").replace(/\s+/g,"_");
     const abs = (data.absender || "Unbekannt").replace(/[\\/*?"<>|]/g,"").replace(/\s+/g,"_");
-    const suggestion = safeName(`${datum}_${typ}_${abs}.pdf`);
+    let suggestion = safeName(`${datum}_${typ}_${abs}.pdf`);
 
+    // Wenn das Backend schon einen Vorschlag schickt, den nehmen
+    if (data.vorschlag) {
+      suggestion = safeName(data.vorschlag);
+    }
+
+    // Vorschlag ins Eingabefeld schreiben
     const input = document.getElementById("filename");
-// Vorschlag direkt vom Backend übernehmen
-if (!input.value && data.vorschlag) {
-  input.value = data.vorschlag;
-}
+    input.value = suggestion;
 
-status.textContent = "Vorschlag eingetragen. Du kannst den Namen noch ändern.";
-status.className = "hint ok";
-
-// Upload-Form sichtbar machen
-document.getElementById("uploadForm").style.display = "block";
-} catch(err) {
-status.textContent = "Analyse fehlgeschlagen: " + err.message;
-status.className = "hint err";
-}
+    status.textContent = "Vorschlag eingetragen. Du kannst den Namen noch ändern.";
+    status.className = "hint ok";
+    document.getElementById("uploadForm").style.display = "block";
+  } catch(err) {
+    status.textContent = "Analyse fehlgeschlagen: " + err.message;
+    status.className = "hint err";
+  }
 });
-
 
 document.getElementById("uploadForm").addEventListener("submit", async (e) => {
   e.preventDefault();
